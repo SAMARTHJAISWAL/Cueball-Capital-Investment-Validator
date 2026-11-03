@@ -1,35 +1,35 @@
 from flask import Blueprint, jsonify, request
+
+from api.models.budget import BudgetRule
 from api.models.investment import Investment
-from api.utils.validators import check_budget_violation
-from sqlalchemy import asc
+from api.utils.validators import find_violations
 
-investment_bp = Blueprint('investment', __name__)
+investment_bp = Blueprint("investment", __name__)
 
-@investment_bp.route('/api/investments', methods=['GET'])
+
+def _chronological():
+    return Investment.query.order_by(Investment.date, Investment.id).all()
+
+
+@investment_bp.route("/api/investments", methods=["GET"])
 def get_investments():
-    sort_by_date = request.args.get('sort', 'false').lower() == 'true'
-    
-    query = Investment.query
-    if sort_by_date:
-        query = query.order_by(asc(Investment.date))
-    
-    investments = query.all()
+    """All investments; ?sort=true orders them by date."""
+    if request.args.get("sort", "false").lower() == "true":
+        investments = _chronological()
+    else:
+        investments = Investment.query.order_by(Investment.id).all()
     return jsonify([inv.to_dict() for inv in investments])
 
-@investment_bp.route('/api/valid_investments', methods=['GET'])
-def get_valid_investments():
-    investments = Investment.query.all()
-    valid_investments = [
-        inv for inv in investments 
-        if not check_budget_violation(inv)
-    ]
-    return jsonify([inv.to_dict() for inv in valid_investments])
 
-@investment_bp.route('/api/violating_investments', methods=['GET'])
+@investment_bp.route("/api/valid_investments", methods=["GET"])
+def get_valid_investments():
+    investments = _chronological()
+    violating = find_violations(investments, BudgetRule.query.all())
+    return jsonify([inv.to_dict() for inv in investments if inv.id not in violating])
+
+
+@investment_bp.route("/api/violating_investments", methods=["GET"])
 def get_violating_investments():
-    investments = Investment.query.all()
-    violating_investments = [
-        inv for inv in investments 
-        if check_budget_violation(inv)
-    ]
-    return jsonify([inv.to_dict() for inv in violating_investments])
+    investments = _chronological()
+    violating = find_violations(investments, BudgetRule.query.all())
+    return jsonify([inv.to_dict() for inv in investments if inv.id in violating])
