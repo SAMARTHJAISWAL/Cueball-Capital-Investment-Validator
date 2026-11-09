@@ -97,3 +97,7 @@ python -m pytest
 ```
 
 The validator tests use plain objects. The route tests load the sample CSVs into a temporary SQLite database.
+
+## Licence
+
+[MIT](LICENSE) © 2025–2026 Samarth Jaiswal
